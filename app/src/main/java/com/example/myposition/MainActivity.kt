@@ -14,7 +14,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,25 +55,30 @@ fun MapScreen() {
     val keyboardController = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
-    var xCoordiante by remember { mutableStateOf("") }
-    var yCoordiante by remember { mutableStateOf("") }
+    var xCoordiante by remember { mutableStateOf("0.0") }
+    var yCoordiante by remember { mutableStateOf("0.0") }
+    var xCoord by remember { mutableStateOf(51.77679067918483) }
+    var yCoord by remember { mutableStateOf(19.489166381256819) }
     var screenCenterY by remember { mutableStateOf(0.0) }
     var screenCenterX by remember { mutableStateOf(0.0) }
     var centerX by remember { mutableStateOf(0f) }
     var centerY by remember { mutableStateOf(0f) }
     var centerYall by remember { mutableStateOf(0f) }
+    var mapView = rememberMapViewWithLifecycle()
+    var isXValid by remember { mutableStateOf(true) }
+    var isYValid by remember { mutableStateOf(true) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { coordinates ->
-        centerYall = coordinates.size.height.toFloat()
-    },
+                centerYall = coordinates.size.height.toFloat()
+            },
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text="MyPosition",
+            text = "MyPosition",
             style = TextStyle(
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
@@ -88,35 +92,67 @@ fun MapScreen() {
         ) {
             OutlinedTextField(
                 value = xCoordiante,
-                onValueChange = { xCoordiante = it },
+                onValueChange = {
+                    xCoordiante = it
+                    isXValid = coordinateXIsValid(xCoordiante)
+                                },
                 label = { Text(text = "Enter X coordinate") },
                 singleLine = true,
+                isError = !isXValid,
+                supportingText = {
+                                 if(!isXValid){
+                                     Text(text="Valid X coordinate is beetwen -90.0 and 90.0 and separated by dot")
+                                 }
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Go
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = { keyboardController?.hide() }
+                    imeAction = ImeAction.Next
                 ),
                 modifier = Modifier.width(screenWidth / 2)
             )
+
             OutlinedTextField(
                 value = yCoordiante,
-                onValueChange = { yCoordiante = it },
+                onValueChange = {
+                    yCoordiante = it
+                    isYValid = coordinateYIsValid(yCoordiante)      },
                 label = { Text(text = "Enter Y coordinate") },
                 singleLine = true,
+                isError = !isYValid,
+                supportingText = {
+                    if(!isYValid){
+                        Text(text="Valid Y coordinate is beetwen -180.0 and 180.0 and separated by dot")
+                    }
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = { keyboardController?.hide() }
+                    onDone = {
+                        if(isYValid && isXValid){
+                            keyboardController?.hide()
+                            xCoord = xCoordiante.toDouble()
+                            yCoord = yCoordiante.toDouble()
+                            mapView.apply {
+                                getMapAsync { googleMap ->
+                                    val location = LatLng(xCoord, yCoord)
+                                    googleMap.addMarker(
+                                        MarkerOptions()
+                                            .position(location)
+                                            .title("Your Position")
+                                    )
+                                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12f))
+                                }
+                            }
+                        }
+                    }
                 ),
                 modifier = Modifier.width(screenWidth / 2)
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
                 value = screenCenterX.toString(),
@@ -133,41 +169,38 @@ fun MapScreen() {
                 modifier = Modifier.width(screenWidth / 2)
             )
         }
-        val mapView = rememberMapViewWithLifecycle()
+            AndroidView(
+                factory = { context ->
+                    mapView.apply {
+                        getMapAsync { googleMap ->
+                            val location = LatLng(xCoord, yCoord)
+                            googleMap.addMarker(
+                                MarkerOptions()
+                                    .position(location)
+                                    .title("Your Position")
+                            )
+                            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12f))
 
-        AndroidView(
-            factory = { context ->
-                mapView.apply {
-                    getMapAsync { googleMap ->
-                        val location = LatLng(37.7749, -122.4194)
-                        googleMap.addMarker(
-                            MarkerOptions()
-                                .position(location)
-                                .title("Marker in San Francisco")
-                        )
-                        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12f))
-
-                        googleMap.setOnCameraIdleListener {
-                            val projection = googleMap.projection
-                            val centerLatLng = projection.visibleRegion.latLngBounds.center
-                            screenCenterX = centerLatLng.latitude
-                            screenCenterY = centerLatLng.longitude
+                            googleMap.setOnCameraIdleListener {
+                                val projection = googleMap.projection
+                                val centerLatLng = projection.visibleRegion.latLngBounds.center
+                                screenCenterX = centerLatLng.latitude
+                                screenCenterY = centerLatLng.longitude
+                            }
                         }
                     }
-                }
-            },
-            modifier = Modifier
-                .fillMaxSize()
-                .onGloballyPositioned { coordinates ->
-                    centerX = coordinates.size.width / 2f
-                    centerY = coordinates.size.height / 2f
-                }
-        )
-        mapView.onSaveInstanceState(Bundle())
-    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned { coordinates ->
+                        centerX = coordinates.size.width / 2f
+                        centerY = coordinates.size.height / 2f
+                    }
+            )
+            mapView.onSaveInstanceState(Bundle())
+        }
     DrawCrosshair(centerX, centerY, centerYall)
 }
-
 @Composable
 fun rememberMapViewWithLifecycle(): MapView {
     val context = LocalContext.current
@@ -194,5 +227,41 @@ fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float) {
             radius = 2f,
             style = Stroke(width = 5f)
         )
+    }
+}
+fun coordinateXIsValid(x:String): Boolean{
+    if(x.contains("," )){
+        return false
+    }
+    if(x.startsWith("-") || x.startsWith(".") ){
+        return true
+    }
+    if (x==""){
+        return false
+    }else {
+        val xcoord = x.toDouble()
+        if (xcoord > 90 || xcoord < -90) {
+            return false
+        } else {
+            return true
+        }
+    }
+}
+fun coordinateYIsValid(y:String): Boolean{
+    if(y.contains("," )){
+        return false
+    }
+    if(y.startsWith("-") || y.startsWith(".") ){
+        return true
+    }
+    if (y==""){
+        return false
+    }else {
+        val ycoord = y.toDouble()
+        if (ycoord > 180 || ycoord < -180) {
+            return false
+        } else {
+            return true
+        }
     }
 }
