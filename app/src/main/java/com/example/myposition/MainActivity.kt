@@ -229,39 +229,11 @@ fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float) {
         )
     }
 }
-fun coordinateXIsValid(x:String): Boolean{
-    if(x.contains("," )){
-        return false
-    }
-    if(x.startsWith("-") || x.startsWith(".") ){
-        return true
-    }
-    if (x==""){
-        return false
-    }else {
-        val xcoord = x.toDouble()
-        if (xcoord > 90 || xcoord < -90) {
-            return false
-        } else {
-            return true
-        }
-    }
+fun coordinateXIsValid(x:String): Boolean {
+    val regexPattern = """^-?(90(\.0+)?|[0-8]?\d(\.\d+)?)$""".toRegex()
+    return regexPattern.matches(x)
 }
 fun coordinateYIsValid(y:String): Boolean{
-    if(y.contains("," )){
-        return false
-    }
-    if(y.startsWith("-") || y.startsWith(".") ){
-        return true
-    }
-    if (y==""){
-        return false
-    }else {
-        val ycoord = y.toDouble()
-        if (ycoord > 180 || ycoord < -180) {
-            return false
-        } else {
-            return true
-        }
-    }
+    val regexPattern = """^-?(180(\.0+)?|1[0-7]\d(\.\d+)?|\d{1,2}(\.\d+)?)$""".toRegex()
+    return regexPattern.matches(y)
 }
