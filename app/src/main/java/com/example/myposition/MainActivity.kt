@@ -3,7 +3,10 @@ package com.example.myposition
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,11 +18,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,11 +39,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role.Companion.Button
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +69,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen() {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -74,10 +87,12 @@ fun MapScreen() {
     var mapView = rememberMapViewWithLifecycle()
     var isXValid by remember { mutableStateOf(true) }
     var isYValid by remember { mutableStateOf(true) }
+    var condition by remember { mutableStateOf(2) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(220, 206, 192, 255))
             .padding(16.dp)
             .onGloballyPositioned { coordinates ->
                 centerYall = coordinates.size.height.toFloat()
@@ -85,10 +100,12 @@ fun MapScreen() {
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier=Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "My Position",
-            modifier = Modifier.height(56.dp).fillMaxSize(),
+            modifier = Modifier
+                .height(56.dp)
+                .fillMaxSize(),
             style = TextStyle(
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
@@ -108,47 +125,58 @@ fun MapScreen() {
                 onValueChange = {
                     xCoordiante = it
                     isXValid = coordinateXIsValid(xCoordiante)
-                                },
-                label = { Text(
-                    text = "Enter X coordinate",
-                    style=TextStyle(
-                        fontFamily = fonts
-                    ))},
+                },
+                label = {
+                    Text(
+                        text = "Enter X coordinate",
+                        style = TextStyle(
+                            fontFamily = fonts
+                        )
+                    )
+                },
                 singleLine = true,
                 isError = !isXValid,
                 supportingText = {
-                                 if(!isXValid){
-                                     Text(
-                                         text = "Valid range between -90.0° and 90.0° and value separated by dot",
-                                         modifier = Modifier.height(36.dp),
-                                         fontSize = 12.sp,
-                                         style = TextStyle(
-                                             fontFamily = fonts,
-                                             textAlign = TextAlign.Left
-                                         )
-                                     )
-                                 }
+                    if (!isXValid) {
+                        Text(
+                            text = "Valid range between -90.0° and 90.0° and value separated by dot",
+                            modifier = Modifier.height(36.dp),
+                            fontSize = 12.sp,
+                            style = TextStyle(
+                                fontFamily = fonts,
+                                textAlign = TextAlign.Left
+                            )
+                        )
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
                 ),
-                modifier = Modifier.width((screenWidth / 2)-16.dp)
+                colors = TextFieldDefaults.textFieldColors(
+                    containerColor = Color.White,
+                ),
+                modifier = Modifier
+                    .width((screenWidth / 2) - 16.dp)
             )
             OutlinedTextField(
                 value = yCoordiante,
                 onValueChange = {
                     yCoordiante = it
-                    isYValid = coordinateYIsValid(yCoordiante)      },
-                label = { Text(
-                    text = "Enter Y coordinate",
-                    style=TextStyle(
-                        fontFamily = fonts
-                    ))},
+                    isYValid = coordinateYIsValid(yCoordiante)
+                },
+                label = {
+                    Text(
+                        text = "Enter Y coordinate",
+                        style = TextStyle(
+                            fontFamily = fonts
+                        )
+                    )
+                },
                 singleLine = true,
                 isError = !isYValid,
                 supportingText = {
-                    if(!isYValid){
+                    if (!isYValid) {
                         Text(
                             text = "Valid range between -180.0° and 180.0° and value separated by dot",
                             modifier = Modifier.height(36.dp),
@@ -166,7 +194,7 @@ fun MapScreen() {
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        if(isYValid && isXValid){
+                        if (isYValid && isXValid) {
                             keyboardController?.hide()
                             xCoord = xCoordiante.toDouble()
                             yCoord = yCoordiante.toDouble()
@@ -178,14 +206,22 @@ fun MapScreen() {
                                             .position(location)
                                             .title("Your Position")
                                     )
-                                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 12f))
+                                    googleMap.moveCamera(
+                                        CameraUpdateFactory.newLatLngZoom(
+                                            location,
+                                            12f
+                                        )
+                                    )
                                 }
                             }
                         }
                     }
                 ),
+                colors = TextFieldDefaults.textFieldColors(
+                    containerColor = Color.White,
+                ),
                 modifier = Modifier
-                    .width((screenWidth / 2)-16.dp)
+                    .width((screenWidth / 2) - 16.dp)
             )
         }
         Row(
@@ -197,28 +233,101 @@ fun MapScreen() {
             OutlinedTextField(
                 value = screenCenterX.toString(),
                 onValueChange = {},
-                label = { Text(
-                    text = "Current X coordinate",
-                        style= TextStyle(
+                label = {
+                    Text(
+                        text = "Current X coordinate",
+                        style = TextStyle(
                             fontFamily = fonts
-                        ))},
-                enabled = false,
-                modifier = Modifier.width((screenWidth / 2)-16.dp)
+                        )
+                    )
+                },
+                enabled = true,
+                colors = TextFieldDefaults.textFieldColors(
+                    containerColor = Color.White,
+                ),
+                modifier = Modifier
+                    .width((screenWidth / 2) - 16.dp)
             )
             OutlinedTextField(
                 value = screenCenterY.toString(),
                 onValueChange = {},
-                label = { Text(
-                    text = "Current Y coordinate",
-                    style=TextStyle(
-                        fontFamily = fonts
-                    ))},
-
-                enabled = false,
-                modifier = Modifier.width((screenWidth / 2)-16.dp)
+                label = {
+                    Text(
+                        text = "Current Y coordinate",
+                        style = TextStyle(
+                            fontFamily = fonts
+                        ),
+                    )
+                },
+                enabled = true,
+                colors = TextFieldDefaults.textFieldColors(
+                    containerColor = Color.White,
+                ),
+                modifier = Modifier
+                    .width((screenWidth / 2) - 16.dp)
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                modifier = Modifier.width((screenWidth / 2) - 16.dp),
+                onClick = {
+                    mapView.apply {
+                        getMapAsync { googleMap ->
+                            googleMap.clear()
+                        }
+                    }
+                },
+                border = BorderStroke(1.dp, Color(15, 33, 68)),
+                shape = RoundedCornerShape(2.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(15, 33, 68),
+                ),
+                enabled = true
+            ) {
+                Text(
+                    text = "Clear markers",
+                    style = TextStyle(
+                        fontFamily = fonts,
+                        color = Color(15, 33, 68)
+                    )
+                )
+            }
+            OutlinedButton(
+                modifier = Modifier.width((screenWidth / 2) - 16.dp),
+                onClick = {
+                    condition = condition + 1
+                },
+                border = BorderStroke(1.dp, Color(15, 33, 68)),
+                shape = RoundedCornerShape(2.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(15, 33, 68),
+                ),
+                enabled = true
+            ) {
+                val buttonText = if (condition % 2 == 0) "Disable crosshair" else "Enable crosshair"
+                Text(
+                    text = buttonText,
+                    style = TextStyle(
+                        fontFamily = fonts,
+                        color = Color(15, 33, 68)
+                    )
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             AndroidView(
                 factory = { context ->
                     mapView.apply {
@@ -246,11 +355,16 @@ fun MapScreen() {
                         centerX = coordinates.size.width / 2f
                         centerY = coordinates.size.height / 2f
                     }
+                    .border(width = 1.dp,
+                        color = Color(15, 33, 68),
+                        shape = RoundedCornerShape(5.dp))
             )
             mapView.onSaveInstanceState(Bundle())
         }
-    DrawCrosshair(centerX, centerY, centerYall)
+    }
+    DrawCrosshair(centerX, centerY, centerYall, condition)
 }
+
 @Composable
 fun rememberMapViewWithLifecycle(): MapView {
     val context = LocalContext.current
@@ -261,24 +375,26 @@ fun rememberMapViewWithLifecycle(): MapView {
     }
 }
 @Composable
-fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        drawCircle(
-            center = Offset(x = centerX, y = centerYall-centerY),
-            color = Color.Black,
-            radius = 20f,
-            style = Stroke(width = 5f)
-        )
-        drawCircle(
-            center = Offset(x = centerX, y = centerYall-centerY),
-            color = Color.Black,
-            radius = 2f,
-            style = Stroke(width = 5f)
-        )
+fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float, condition: Int) {
+    if(condition%2 == 0){
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            drawCircle(
+                center = Offset(x = centerX, y = centerYall-centerY),
+                color = Color.Black,
+                radius = 20f,
+                style = Stroke(width = 5f)
+            )
+            drawCircle(
+                center = Offset(x = centerX, y = centerYall-centerY),
+                color = Color.Black,
+                radius = 2f,
+                style = Stroke(width = 5f)
+            )
+        }
     }
 }
 fun coordinateXIsValid(x:String): Boolean {
