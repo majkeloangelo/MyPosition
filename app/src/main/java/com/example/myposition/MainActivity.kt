@@ -7,11 +7,17 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.myposition.ui.theme.fonts
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
 import com.google.android.gms.maps.model.LatLng
@@ -71,24 +78,30 @@ fun MapScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .padding(16.dp)
             .onGloballyPositioned { coordinates ->
                 centerYall = coordinates.size.height.toFloat()
             },
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier=Modifier.height(8.dp))
         Text(
-            text = "MyPosition",
+            text = "My Position",
+            modifier = Modifier.height(56.dp).fillMaxSize(),
             style = TextStyle(
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 fontSize = 36.sp,
+                fontFamily = fonts,
                 color = Color(15, 33, 68),
             )
         )
         Row(
-            modifier = Modifier.fillMaxWidth()
-
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            horizontalArrangement = Arrangement.Absolute.Center
         ) {
             OutlinedTextField(
                 value = xCoordiante,
@@ -96,32 +109,55 @@ fun MapScreen() {
                     xCoordiante = it
                     isXValid = coordinateXIsValid(xCoordiante)
                                 },
-                label = { Text(text = "Enter X coordinate") },
+                label = { Text(
+                    text = "Enter X coordinate",
+                    style=TextStyle(
+                        fontFamily = fonts
+                    ))},
                 singleLine = true,
                 isError = !isXValid,
                 supportingText = {
                                  if(!isXValid){
-                                     Text(text="Valid X coordinate is beetwen -90.0 and 90.0 and separated by dot")
+                                     Text(
+                                         text = "Valid range between -90.0° and 90.0° and value separated by dot",
+                                         modifier = Modifier.height(36.dp),
+                                         fontSize = 12.sp,
+                                         style = TextStyle(
+                                             fontFamily = fonts,
+                                             textAlign = TextAlign.Left
+                                         )
+                                     )
                                  }
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
                 ),
-                modifier = Modifier.width(screenWidth / 2)
+                modifier = Modifier.width((screenWidth / 2)-16.dp)
             )
-
             OutlinedTextField(
                 value = yCoordiante,
                 onValueChange = {
                     yCoordiante = it
                     isYValid = coordinateYIsValid(yCoordiante)      },
-                label = { Text(text = "Enter Y coordinate") },
+                label = { Text(
+                    text = "Enter Y coordinate",
+                    style=TextStyle(
+                        fontFamily = fonts
+                    ))},
                 singleLine = true,
                 isError = !isYValid,
                 supportingText = {
                     if(!isYValid){
-                        Text(text="Valid Y coordinate is beetwen -180.0 and 180.0 and separated by dot")
+                        Text(
+                            text = "Valid range between -180.0° and 180.0° and value separated by dot",
+                            modifier = Modifier.height(36.dp),
+                            fontSize = 12.sp,
+                            style = TextStyle(
+                                fontFamily = fonts,
+                                textAlign = TextAlign.Left
+                            )
+                        )
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -148,27 +184,41 @@ fun MapScreen() {
                         }
                     }
                 ),
-                modifier = Modifier.width(screenWidth / 2)
+                modifier = Modifier
+                    .width((screenWidth / 2)-16.dp)
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = screenCenterX.toString(),
                 onValueChange = {},
-                label = { Text(text = "Current X coordinate") },
+                label = { Text(
+                    text = "Current X coordinate",
+                        style= TextStyle(
+                            fontFamily = fonts
+                        ))},
                 enabled = false,
-                modifier = Modifier.width(screenWidth / 2)
+                modifier = Modifier.width((screenWidth / 2)-16.dp)
             )
             OutlinedTextField(
                 value = screenCenterY.toString(),
                 onValueChange = {},
-                label = { Text(text = "Current Y coordinate") },
+                label = { Text(
+                    text = "Current Y coordinate",
+                    style=TextStyle(
+                        fontFamily = fonts
+                    ))},
+
                 enabled = false,
-                modifier = Modifier.width(screenWidth / 2)
+                modifier = Modifier.width((screenWidth / 2)-16.dp)
             )
         }
+        Spacer(modifier = Modifier.height(16.dp))
             AndroidView(
                 factory = { context ->
                     mapView.apply {
@@ -213,7 +263,9 @@ fun rememberMapViewWithLifecycle(): MapView {
 @Composable
 fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float) {
     Canvas(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
         drawCircle(
             center = Offset(x = centerX, y = centerYall-centerY),
