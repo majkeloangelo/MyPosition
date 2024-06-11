@@ -8,25 +8,27 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -34,26 +36,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.semantics.Role.Companion.Button
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.myposition.ui.theme.MyPositionTheme
 import com.example.myposition.ui.theme.fonts
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.MapView
@@ -65,13 +74,148 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-                MapScreen()
+            MyPositionTheme {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+                    val navController = rememberNavController()
+                    NavHost(navController, startDestination = "login_screen") {
+                        composable("login_screen") { LoginScreen(navController) }
+                        composable("map_screen") { MapScreen(navController) }
+                    }
+                }
+            }
         }
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen() {
+fun LoginScreen(navController: NavHostController) {
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisibility by rememberSaveable { mutableStateOf(false) }
+    var login by rememberSaveable { mutableStateOf("") }
+
+    Row(
+        modifier = Modifier
+            .padding(8.dp)
+            .fillMaxSize()
+            .background(Color(255, 255, 255, 0))
+            .verticalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.Absolute.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "My Position",
+                modifier = Modifier
+                    .height(56.dp)
+                    .fillMaxSize(),
+                style = TextStyle(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 36.sp,
+                    color = Color(15, 33, 68),
+                )
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextField(
+                value = login,
+                onValueChange = { login = it },
+                label = { Text("Enter Login") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                singleLine = true,
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(id = R.drawable.login),
+                        contentDescription = null
+                    )
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Enter Password") },
+                visualTransformation = if (passwordVisibility) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                trailingIcon = {
+                    val image = if (passwordVisibility) {
+                        painterResource(id = R.drawable.pass_eye_off)
+                    } else {
+                        painterResource(id = R.drawable.pass_eye)
+                    }
+                    IconButton(onClick = {
+                        passwordVisibility = !passwordVisibility
+                    }) {
+                        Icon(painter = image, contentDescription = null)
+                    }
+                },
+                leadingIcon = {
+                    Icon(painter = painterResource(id = R.drawable.lock), contentDescription = null)
+                }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Box {
+                Row(
+                    modifier = Modifier
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.Absolute.Center
+                ) {
+                    if (Validate(login, password)) {
+                        Text(
+                            text = "Click to show info about device",
+                            modifier = Modifier
+                                .height(16.dp)
+                                .fillMaxWidth(),
+                            style = TextStyle(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(15, 33, 68),
+                            )
+                        )
+                    } else {
+                        Text(
+                            text = "Enter validate login and password",
+                            modifier = Modifier
+                                .height(16.dp)
+                                .fillMaxWidth(),
+                            style = TextStyle(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(15, 33, 68),
+                            )
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            FloatingButton(onClick = { navController.navigate("map_screen") }, login, password)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "",
+                modifier = Modifier
+                    .fillMaxSize(),
+                style = TextStyle(
+                    textAlign = TextAlign.Justify,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = Color(15, 33, 68),
+
+                    )
+            )
+        }
+    }
+}
+@Composable
+fun MapScreen(navController: NavHostController) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -92,7 +236,7 @@ fun MapScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(220, 206, 192, 255))
+            .background(Color(220, 206, 192, 0))
             .padding(16.dp)
             .onGloballyPositioned { coordinates ->
                 centerYall = coordinates.size.height.toFloat()
@@ -153,8 +297,10 @@ fun MapScreen() {
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
                 ),
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
                 ),
                 modifier = Modifier
                     .width((screenWidth / 2) - 16.dp)
@@ -217,8 +363,10 @@ fun MapScreen() {
                         }
                     }
                 ),
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
                 ),
                 modifier = Modifier
                     .width((screenWidth / 2) - 16.dp)
@@ -242,8 +390,10 @@ fun MapScreen() {
                     )
                 },
                 enabled = true,
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
                 ),
                 modifier = Modifier
                     .width((screenWidth / 2) - 16.dp)
@@ -260,8 +410,10 @@ fun MapScreen() {
                     )
                 },
                 enabled = true,
-                colors = TextFieldDefaults.textFieldColors(
-                    containerColor = Color.White,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
                 ),
                 modifier = Modifier
                     .width((screenWidth / 2) - 16.dp)
@@ -355,9 +507,11 @@ fun MapScreen() {
                         centerX = coordinates.size.width / 2f
                         centerY = coordinates.size.height / 2f
                     }
-                    .border(width = 1.dp,
+                    .border(
+                        width = 1.dp,
                         color = Color(15, 33, 68),
-                        shape = RoundedCornerShape(5.dp))
+                        shape = RoundedCornerShape(5.dp)
+                    )
             )
             mapView.onSaveInstanceState(Bundle())
         }
@@ -404,4 +558,26 @@ fun coordinateXIsValid(x:String): Boolean {
 fun coordinateYIsValid(y:String): Boolean{
     val regexPattern = """^-?(180(\.0+)?|1[0-7]\d(\.\d+)?|\d{1,2}(\.\d+)?)$""".toRegex()
     return regexPattern.matches(y)
+}
+
+fun Validate(login: String, password: String): Boolean{
+    if (login.toLowerCase() == "admin" && password == "admin"){
+        return true
+    }else{
+        return false
+    }
+}
+@Composable
+fun FloatingButton(onClick: () -> Unit, login: String, password: String) {
+    var buttonColor by remember { mutableStateOf(Color(0xFFADADAD)) }
+    FloatingActionButton(
+        onClick = {
+            if (Validate(login, password)) {
+                onClick()
+            }
+        },
+        containerColor = buttonColor
+    ) {
+        Icon(painter = painterResource(id = R.drawable.phone), contentDescription = null)
+    }
 }

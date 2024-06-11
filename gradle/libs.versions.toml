@@ -11,8 +11,13 @@ composeBom = "2023.08.00"
 mapsCompose = "4.3.3"
 playServicesCompose = "2.11.5"
 playServicesLocation = "21.2.0"
+playServicesLocationVersion = "18.0.0"
 playServicesMaps = "18.2.0"
 playServicesUtils = "3.4.0"
+material3Android = "1.2.1"
+navigationCompose = "2.7.7"
+navigationRuntimeKtx = "2.7.7"
+compilercommon = "3.2.0-alpha11"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,8 +37,13 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = "mapsCompose" }
 play-services-compose = { module = "com.google.android.gms:play-services-compose", version.ref = "playServicesCompose" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
+play-services-location-v1800 = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocationVersion" }
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 play-services-utils = { module = "com.google.android.gms:play-services-utils", version.ref = "playServicesUtils" }
+androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navigation-runtime-ktx", version.ref = "navigationRuntimeKtx" }
+androidx-compilerCommon = { group = "androidx.databinding", name = "compilerCommon", version.ref = "compilercommon" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
