@@ -1,15 +1,21 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.myposition
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.widget.EditText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,12 +28,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +47,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -58,11 +67,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.LifecycleOwner
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -118,6 +127,8 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION
         ))
 
+        val mapViewModel: MapViewModel by viewModels()
+
         setContent {
             MyPositionTheme {
                 Surface(
@@ -126,7 +137,8 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(navController, startDestination = "login_screen") {
                         composable("login_screen") { LoginScreen(navController) }
-                        composable("map_screen") { MapScreen(navController, locationViewModel) }
+                        composable("map_screen") { MapScreen(navController, mapViewModel, fusedLocationClient) }
+                        composable("markerList") { MarkerListScreen(mapViewModel.markers.value, onBack = { navController.popBackStack() }) }
                     }
                 }
             }
@@ -153,12 +165,25 @@ class MainActivity : ComponentActivity() {
             }
     }
 }
+
 @Composable
 fun LoginScreen(navController: NavHostController) {
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisibility by rememberSaveable { mutableStateOf(false) }
     var login by rememberSaveable { mutableStateOf("") }
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Image(
+            painter=  painterResource(id = R.drawable.theme),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+    Spacer(modifier = Modifier.height(36.dp))
     Row(
         modifier = Modifier
             .padding(8.dp)
@@ -170,22 +195,32 @@ fun LoginScreen(navController: NavHostController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                .padding(top = 36.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "My Location",
+            Box(
                 modifier = Modifier
-                    .height(56.dp)
-                    .fillMaxSize(),
-                style = TextStyle(
+                    .padding(16.dp)
+                    .background(
+                        color = Color.White,
+                        shape = RoundedCornerShape(10.dp)
+                    ),
+            ){
+                Text(
+                    text = "My Location",
                     textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 36.sp,
-                    color = Color(15, 33, 68),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp),
+                    style = TextStyle(
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 36.sp,
+                        color = Color(15, 33, 68),
+                    )
                 )
-            )
+            }
             Spacer(modifier = Modifier.height(16.dp))
             TextField(
                 value = login,
@@ -198,7 +233,13 @@ fun LoginScreen(navController: NavHostController) {
                         painter = painterResource(id = R.drawable.login),
                         contentDescription = null
                     )
-                }
+                },
+                shape = RoundedCornerShape(10.dp, 10.dp, 10.dp, 10.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
+                ),
             )
             Spacer(modifier = Modifier.height(16.dp))
             TextField(
@@ -222,49 +263,18 @@ fun LoginScreen(navController: NavHostController) {
                 },
                 leadingIcon = {
                     Icon(painter = painterResource(id = R.drawable.lock), contentDescription = null)
-                }
+                },
+                shape = RoundedCornerShape(10.dp, 10.dp, 10.dp, 10.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
+                ),
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Box {
-                Row(
-                    modifier = Modifier
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.Absolute.Center
-                ) {
-                    if (Validate(login, password)) {
-                        Text(
-                            text = "Click to show info about device",
-                            modifier = Modifier
-                                .height(16.dp)
-                                .fillMaxWidth(),
-                            style = TextStyle(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = Color(15, 33, 68),
-                            )
-                        )
-                    } else {
-                        Text(
-                            text = "Enter validate login and password",
-                            modifier = Modifier
-                                .height(16.dp)
-                                .fillMaxWidth(),
-                            style = TextStyle(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                color = Color(15, 33, 68),
-                            )
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(72.dp))
             FloatingButton(onClick = { navController.navigate("map_screen") }, login, password)
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "",
+                text = "Login ",
                 modifier = Modifier
                     .fillMaxSize(),
                 style = TextStyle(
@@ -278,12 +288,11 @@ fun LoginScreen(navController: NavHostController) {
         }
     }
 }
+@SuppressLint("MissingPermission")
 @Composable
-fun MapScreen(navController: NavHostController, locationViewModel: LocationViewModel) {
+fun MapScreen(navController: NavHostController, mapViewModel: MapViewModel, locationViewModel: FusedLocationProviderClient) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
-    var xCoord by remember { mutableStateOf(51.77679067918483) }
-    var yCoord by remember { mutableStateOf(19.489166381256819) }
     var screenCenterY by remember { mutableStateOf(0.0) }
     var screenCenterX by remember { mutableStateOf(0.0) }
     var centerX by remember { mutableStateOf(0f) }
@@ -292,11 +301,13 @@ fun MapScreen(navController: NavHostController, locationViewModel: LocationViewM
     var mapView = rememberMapViewWithLifecycle()
     var condition by remember { mutableStateOf(2) }
     var condition1 by remember { mutableStateOf(2) }
-    val location by locationViewModel.location.observeAsState()
     var googleMapRef by remember { mutableStateOf<GoogleMap?>(null) }
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var expanded by remember { mutableStateOf(false) }
+    var markers by remember { mutableStateOf(listOf<MapMarker>()) }
+    var markersState by mapViewModel.markers
+    var isSatelliteView by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -305,136 +316,14 @@ fun MapScreen(navController: NavHostController, locationViewModel: LocationViewM
                 centerYall = coordinates.size.height.toFloat()
             }
     ) {
+        Image(
+            painter=  painterResource(id = R.drawable.theme),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize())
     }
-    /*Column(
-modifier = Modifier
-    .fillMaxSize()
-    .background(Color(220, 206, 192, 0))
-    .onGloballyPositioned { coordinates ->
-        centerYall = coordinates.size.height.toFloat()
-    },
-verticalArrangement = Arrangement.SpaceBetween,
-horizontalAlignment = Alignment.CenterHorizontally
-) {
-Spacer(modifier = Modifier.height(8.dp))
-Text(
-    text = "My Location",
-    modifier = Modifier
-        .height(56.dp)
-        .fillMaxSize(),
-    style = TextStyle(
-        textAlign = TextAlign.Center,
-        fontWeight = FontWeight.Bold,
-        fontSize = 36.sp,
-        fontFamily = fonts,
-        color = Color(15, 33, 68),
-    )
-)
-Row(
-    modifier = Modifier
-        .fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
-) {
-    OutlinedTextField(
-        value = screenCenterX.toString(),
-        onValueChange = {},
-        label = {
-            Text(
-                text = "Current X coordinate",
-                style = TextStyle(
-                    fontFamily = fonts
-                )
-            )
-        },
-        enabled = true,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-            disabledContainerColor = Color.White,
-        ),
-        modifier = Modifier
-            .width((screenWidth / 2) - 16.dp)
-    )
-    OutlinedTextField(
-        value = screenCenterY.toString(),
-        onValueChange = {},
-        label = {
-            Text(
-                text = "Current Y coordinate",
-                style = TextStyle(
-                    fontFamily = fonts
-                ),
-            )
-        },
-        enabled = true,
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-            disabledContainerColor = Color.White,
-        ),
-        modifier = Modifier
-            .width((screenWidth / 2) - 16.dp)
-    )
-}
-Spacer(modifier = Modifier.height(16.dp))
-Row(
-    modifier = Modifier
-        .fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
-) {
-    OutlinedButton(
-        modifier = Modifier.width((screenWidth / 2) - 16.dp),
-        onClick = {
-            mapView.apply {
-                getMapAsync { googleMap ->
-                    googleMap.clear()
-                }
-            }
-        },
-        border = BorderStroke(1.dp, Color(15, 33, 68)),
-        shape = RoundedCornerShape(2.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.White,
-            contentColor = Color(15, 33, 68),
-        ),
-        enabled = true
-    ) {
-        Text(
-            text = "Clear markers",
-            style = TextStyle(
-                fontFamily = fonts,
-                color = Color(15, 33, 68)
-            )
-        )
-    }
-    OutlinedButton(
-        modifier = Modifier.width((screenWidth / 2) - 16.dp),
-        onClick = {
-            condition = condition + 1
-        },
-        border = BorderStroke(1.dp, Color(15, 33, 68)),
-        shape = RoundedCornerShape(2.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.White,
-            contentColor = Color(15, 33, 68),
-        ),
-        enabled = true
-    ) {
-        val buttonText = if (condition % 2 == 0) "Disable crosshair" else "Enable crosshair"
-        Text(
-            text = buttonText,
-            style = TextStyle(
-                fontFamily = fonts,
-                color = Color(15, 33, 68)
-            )
-        )
-    }
-}
-Spacer(modifier = Modifier.height(16.dp))*/
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .onGloballyPositioned { coordinates ->
                 centerYall = coordinates.size.height.toFloat()
             }
@@ -444,31 +333,21 @@ Spacer(modifier = Modifier.height(16.dp))*/
                 mapView.apply {
                     getMapAsync { googleMap ->
                         googleMapRef = googleMap
-                        val location = LatLng(xCoord, yCoord)
-                        val marker = googleMap.addMarker(
-                            MarkerOptions()
-                                .position(location)
-                                .title("Your Position")
-                        )
-                        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 16f))
+
+                        googleMap.mapType = if (isSatelliteView) GoogleMap.MAP_TYPE_SATELLITE else GoogleMap.MAP_TYPE_NORMAL
+
+                        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                            location?.let {
+                                val currentLatLng = LatLng(it.latitude, it.longitude)
+                                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 16f))
+                            }
+                        }
 
                         googleMap.setOnCameraIdleListener {
                             val projection = googleMap.projection
                             val centerLatLng = projection.visibleRegion.latLngBounds.center
                             screenCenterX = centerLatLng.latitude
                             screenCenterY = centerLatLng.longitude
-                        }
-                        locationViewModel.location.observe(context as LifecycleOwner) { newLocation ->
-                            newLocation?.let {
-                                val newLatLng = LatLng(it.latitude, it.longitude)
-                                marker?.position = newLatLng
-                                googleMap.moveCamera(
-                                    CameraUpdateFactory.newLatLngZoom(
-                                        newLatLng,
-                                        16f
-                                    )
-                                )
-                            }
                         }
                     }
                 }
@@ -548,7 +427,7 @@ Spacer(modifier = Modifier.height(16.dp))*/
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp,16.dp,16.dp,30.dp),
         contentAlignment = Alignment.BottomEnd
     ) {
         FloatingActionButton(
@@ -563,56 +442,233 @@ Spacer(modifier = Modifier.height(16.dp))*/
             onDismissRequest = {
                 condition1 = condition1 + 1
                 if (condition1 % 2 == 0) expanded = true else expanded = false
-            }
+            },
+            offset = DpOffset(x = 0.dp, y = (-48).dp)
         ) {
             DropdownMenuItem(
                 onClick = {
                     googleMapRef?.clear()
-                    //expanded = false
+                    markers = emptyList()
+                    mapViewModel.clearMarkers()
                 },
-                text = { Text("Clear markers") }
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.trash), contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Clear markers")
+                    }
+                }
             )
             DropdownMenuItem(
                 onClick = {
                     condition = condition + 1
-                    //expanded = false
                 },
-                text = { Text(if (condition % 2 == 0) "Disable crosshair" else "Enable crosshair") }
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.target), contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (condition % 2 == 0) "Disable crosshair" else " Enable crosshair")
+                    }
+                }
             )
             DropdownMenuItem(
                 onClick = {
-                    addMarkerAtCurrentLocation(fusedLocationClient, googleMapRef)
-                   //expanded = false
+                    showAddMarkerDialog(context, fusedLocationClient, googleMapRef) { mapMarker ->
+                        mapViewModel.addMarker(mapMarker)
+                    }
                 },
-                text = { Text("Add marker") }
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.add_square), contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add marker")
+                    }
+                }
             )
             DropdownMenuItem(
                 onClick = {
                     centerMapAtCurrentLocation(fusedLocationClient, googleMapRef)
-                    //expanded = false
                 },
-                text = { Text("Center on location") }
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.gps_fixed), contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Center on location")
+                    }
+                }
             )
+            DropdownMenuItem(
+                onClick = {
+                    navController.navigate("markerList") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(id = R.drawable.pin_alt), contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Show markers")
+                    }
+                }
+            )
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp,16.dp,16.dp,30.dp),
+        contentAlignment = Alignment.BottomStart
+    ) {
+        FloatingActionButton(
+            onClick = {
+                isSatelliteView = !isSatelliteView
+                googleMapRef?.mapType = if (isSatelliteView) GoogleMap.MAP_TYPE_SATELLITE else GoogleMap.MAP_TYPE_NORMAL },
+            containerColor = Color(0xFFFFFFFF),
+        ) {
+            if(isSatelliteView) {
+                Icon(
+                    painter = painterResource(id = R.drawable.def),
+                    contentDescription = null,
+                    tint = Color.Unspecified
+                )
+            }else{
+                Icon(
+                    painter = painterResource(id = R.drawable.satelita),
+                    contentDescription = null,
+                    tint = Color.Unspecified
+                )
+            }
         }
     }
     DrawCrosshair(centerX, centerY, centerYall, condition)
+    DrawMarkers(googleMapRef, markersState)
 }
-@SuppressLint("MissingPermission")
-fun addMarkerAtCurrentLocation(
-    fusedLocationClient: FusedLocationProviderClient,
-    googleMapRef: GoogleMap?
-) {
-    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-        location?.let {
-            val currentLatLng = LatLng(it.latitude, it.longitude)
-            googleMapRef?.addMarker(
-                MarkerOptions()
-                    .position(currentLatLng)
-                    .title("Current Location")
+@Composable
+fun MarkerListScreen(markers: List<MapMarker>, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Marker List",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(16.dp),
+            style = TextStyle(
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Bold,
+                fontSize = 36.sp,
+                color = Color(15, 33, 68)
             )
-            googleMapRef?.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 16f))
+        )
+
+        if (markers.isEmpty()) {
+            Text(
+                text = "No markers added yet",
+                modifier = Modifier
+                    .padding(16.dp),
+                style = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(15, 33, 68)
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                FloatingActionButton(
+                    onClick = onBack,
+                    containerColor = Color(0xFFFFFFFF),
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow_left),
+                        contentDescription = null
+                    )
+                }
+            }
+        } else {
+            LazyColumn {
+                items(markers) { mapMarker ->
+                    Text(
+                        text = "${mapMarker.title}:    latitude: ${mapMarker.latitude}, longitude: ${mapMarker.longitude}",
+                        modifier = Modifier
+                            .padding(16.dp),
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color(15, 33, 68)
+                        )
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp,16.dp,16.dp,30.dp),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                FloatingActionButton(
+                    onClick = onBack,
+                    containerColor = Color(0xFFFFFFFF),
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow_left),
+                        contentDescription = null
+                    )
+                }
+            }
         }
     }
+}
+@SuppressLint("MissingPermission")
+fun showAddMarkerDialog(
+    context: Context,
+    fusedLocationClient: FusedLocationProviderClient,
+    googleMapRef: GoogleMap?,
+    onMarkerAdded: (MapMarker) -> Unit
+) {
+    val builder = AlertDialog.Builder(context)
+    builder.setTitle("Add Marker")
+
+    val input = EditText(context)
+    builder.setView(input)
+
+    builder.setPositiveButton("OK") { dialog, _ ->
+        val description = input.text.toString()
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            location?.let {
+                val currentLatLng = LatLng(it.latitude, it.longitude)
+                val marker = googleMapRef?.addMarker(
+                    MarkerOptions()
+                        .position(currentLatLng)
+                        .title(description)
+                )
+                marker?.let {
+                    val mapMarker = MapMarker(
+                        title = description,
+                        latitude = it.position.latitude,
+                        longitude = it.position.longitude
+                    )
+                    onMarkerAdded(mapMarker)
+                }
+            }
+        }
+        dialog.dismiss()
+    }
+
+    builder.setNegativeButton("Cancel") { dialog, _ ->
+        dialog.cancel()
+    }
+
+    builder.show()
 }
 @SuppressLint("MissingPermission")
 fun centerMapAtCurrentLocation(
@@ -630,8 +686,8 @@ fun centerMapAtCurrentLocation(
 fun rememberMapViewWithLifecycle(): MapView {
     val context = LocalContext.current
     return remember {
-    MapView(context).apply {
-        onCreate(Bundle())
+        MapView(context).apply {
+            onCreate(Bundle())
         }
     }
 }
@@ -640,7 +696,7 @@ fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float, condition: 
     if(condition%2 == 0){
         Canvas(
             modifier = Modifier
-            .fillMaxSize()
+                .fillMaxSize()
         ) {
             drawCircle(
                 center = Offset(x = centerX, y = centerYall-centerY),
@@ -659,23 +715,34 @@ fun DrawCrosshair(centerX: Float, centerY: Float, centerYall: Float, condition: 
 }
 
 fun Validate(login: String, password: String): Boolean{
-if (login.toLowerCase() == "admin" && password == "admin"){
-return true
-}else{
-return false
-}
+    if (login.toLowerCase() == "admin" && password == "admin"){
+        return true
+    }else{
+        return false
+    }
 }
 @Composable
 fun FloatingButton(onClick: () -> Unit, login: String, password: String) {
-var buttonColor by remember { mutableStateOf(Color(0xFFFFFFFF)) }
-FloatingActionButton(
-onClick = {
-    if (Validate(login, password)) {
-        onClick()
+    var buttonColor by remember { mutableStateOf(Color(0xFFFFFFFF)) }
+    FloatingActionButton(
+        onClick = {
+            if (Validate(login, password)) {
+                onClick()
+            }
+        },
+        containerColor = buttonColor
+    ){
+        Icon(painter = painterResource(id = R.drawable.phone), contentDescription = null)
     }
-},
-containerColor = buttonColor
-) {
-Icon(painter = painterResource(id = R.drawable.phone), contentDescription = null)
 }
+fun DrawMarkers(googleMap: GoogleMap?, markers: List<MapMarker>) {
+    googleMap?.let { map ->
+        map.clear()
+        markers.forEach { marker ->
+            val markerOptions = MarkerOptions()
+                .position(LatLng(marker.latitude, marker.longitude))
+                .title(marker.title)
+            map.addMarker(markerOptions)
+        }
+    }
 }
